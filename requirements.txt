@@ -1,7 +1,10 @@
 streamlit
-langchain-groq
-langchain-huggingface
+langchain
 langchain-community
-langchain-classic
+langchain-huggingface
+langchain-groq
 chromadb
 sentence-transformers
+torch
+torchvision
+protobuf==4.25.3
