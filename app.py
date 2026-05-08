@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 # --- 1. CONFIG & DARK THEME CSS ---
 st.set_page_config(page_title="Lexis Nigeria", page_icon="🇳🇬", layout="wide")
 
+# Your Active Groq API Key
 GROQ_API_KEY = "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"
 
 st.markdown("""
@@ -49,11 +50,17 @@ st.markdown("""
 # --- 2. THE ENGINE (HYBRID RAG) ---
 @st.cache_resource
 def setup_engine():
-    # UPDATED: Use "./" to find files in the root directory of your GitHub
+    # Dynamic Path Resolution to fix "Absolute URI" errors in VS Code
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = current_dir # Points to where your .bin and .sqlite3 files are located
+
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
-    db = Chroma(persist_directory="./", embedding_function=embeddings)
+    
+    # Initialize Vector Store
+    db = Chroma(persist_directory=db_path, embedding_function=embeddings)
     retriever = db.as_retriever(search_kwargs={"k": 3})
     
+    # Cloud Generation (Groq LPU)
     llm = ChatGroq(
         temperature=0, 
         groq_api_key=GROQ_API_KEY, 
@@ -67,11 +74,14 @@ def setup_engine():
         "Keep your tone professional and authoritative."
         "\n\nContext: {context}"
     )
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt), ("human", "{input}"),
     ])
+    
     return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
 
+# Initialize the RAG Pipeline
 rag_pipeline = setup_engine()
 
 # --- 3. SESSION STATE ---
@@ -94,28 +104,33 @@ with st.sidebar:
 st.title("Lexis Nigeria")
 st.caption("Intelligent Constitutional Retrieval Engine • Grounded in the 1999 Constitution")
 
+# Display Conversation History
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# User Input Logic
 if query := st.chat_input("Ask about your constitutional rights..."):
+    # Save to sidebar history
     if query not in st.session_state.history: 
         st.session_state.history.append(query)
     
+    # Display User message
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user"): 
         st.markdown(query)
 
+    # Generate and display Assistant message
     with st.chat_message("assistant"):
         with st.spinner("Searching the Constitution..."):
             response = rag_pipeline.invoke({"input": query})
             ans = response["answer"]
             st.markdown(ans)
             
-            # UPDATED: Display Metadata "Section" citations
+            # Display Metadata "Section" citations
             with st.expander("🔍 View Verified Legal Context"):
                 for doc in response["context"]:
-                    # Pull the label we created in the build script
+                    # Pull the label created in the build script
                     section_ref = doc.metadata.get("section_ref", "Verified Provision")
                     st.markdown(f"#### 📜 {section_ref}")
                     st.info(f"{doc.page_content[:450]}...")
