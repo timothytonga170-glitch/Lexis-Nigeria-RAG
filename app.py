@@ -50,11 +50,14 @@ st.markdown("""
 # --- 2. THE ENGINE (HYBRID RAG) ---
 @st.cache_resource
 def setup_engine():
-    # Dynamic Path Resolution to fix "Absolute URI" errors in VS Code
+    # Phase 5: Local Retrieval with Absolute Path Resolution
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = current_dir # Points to where your .bin and .sqlite3 files are located
+    
+    # UPDATED: Point directly to the folder with your 685 semantic chunks
+    db_path = os.path.join(current_dir, "constitution_db") 
 
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    db = Chroma(persist_directory=db_path, embedding_function=embeddings)
     
     # Initialize Vector Store
     db = Chroma(persist_directory=db_path, embedding_function=embeddings)
