@@ -10,8 +10,8 @@ from langchain_core.prompts import ChatPromptTemplate
 # --- 1. CONFIG & DARK THEME CSS ---
 st.set_page_config(page_title="Lexis Nigeria", page_icon="🇳🇬", layout="wide")
 
-# Your Active Groq API Key
-GROQ_API_KEY = "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"
+#  Active Groq API Key
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 
 st.markdown("""
     <style>
