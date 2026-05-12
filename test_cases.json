@@ -1,0 +1,14 @@
+[
+  {
+    "question": "Can the police arrest me without a warrant?",
+    "ground_truth": "Every person has the right to personal liberty and no person shall be deprived of such liberty save in accordance with a procedure permitted by law. A person cannot be arbitrarily arrested without reasonable cause or a valid warrant, except as provided by Section 35 of the Constitution."
+  },
+  {
+    "question": "What are the requirements to be elected as President of Nigeria?",
+    "ground_truth": "A person shall be qualified for election to the office of the President if he is a citizen of Nigeria by birth, has attained the age of forty years, is a member of a political party and is sponsored by that political party, and has been educated up to at least School Certificate level or its equivalent."
+  },
+  {
+    "question": "Is primary education free and compulsory in Nigeria?",
+    "ground_truth": "Government shall direct its policy towards ensuring that there are equal and adequate educational opportunities at all levels. Government shall strive to eradicate illiteracy; and to this end Government shall as and when practicable provide free, compulsory and universal primary education."
+  }
+]
