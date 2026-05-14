@@ -4,15 +4,15 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq 
 
-# FIX: Corrected import paths from langchain_classic to standard langchain
+
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# --- 1. CONFIG & DARK THEME CSS ---
+#  CONFIG & DARK THEME CSS 
 st.set_page_config(page_title="Lexis Nigeria", page_icon="🇳🇬", layout="wide")
 
-# FIX: Secure API key handling via environment variable instead of direct variable
+
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 st.markdown("""
@@ -49,7 +49,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE ENGINE (HYBRID RAG) ---
+#  THE ENGINE 
 @st.cache_resource
 def setup_engine():
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -57,7 +57,7 @@ def setup_engine():
 
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
     
-    # FIX: Removed the duplicate ChromaDB initialization
+    
     db = Chroma(persist_directory=db_path, embedding_function=embeddings)
     retriever = db.as_retriever(search_kwargs={"k": 3})
     
@@ -67,7 +67,7 @@ def setup_engine():
         model_name="llama-3.1-8b-instant" 
     )
     
-    # FIX: Enhanced System Prompt for explicit hallucination prevention
+    #  Enhanced System Prompt for explicit hallucination prevention
     system_prompt = (
         "You are a legal expert on the 1999 Nigerian Constitution. "
         "Answer the question strictly using the provided context in formal English. "
@@ -86,13 +86,13 @@ def setup_engine():
 
 rag_pipeline = setup_engine()
 
-# --- 3. SESSION STATE ---
+#  3. SESSION STATE 
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 if "history" not in st.session_state: 
     st.session_state.history = []
 
-# --- 4. SIDEBAR HISTORY ---
+#  SIDEBAR HISTORY 
 with st.sidebar:
     st.markdown("### 🏛 **Legal History**")
     if st.button("🗑 Clear Chat"):
@@ -103,7 +103,7 @@ with st.sidebar:
     for h_query in reversed(st.session_state.history):
         st.caption(f"📜 {h_query[:30]}...")
 
-# --- 5. MAIN CHAT INTERFACE ---
+#  5. MAIN CHAT INTERFACE 
 st.title("Lexis Nigeria")
 st.caption("Intelligent Constitutional Retrieval Engine • Grounded in the 1999 Constitution")
 
@@ -112,7 +112,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 if query := st.chat_input("Ask about your constitutional rights..."):
-    # FIX: Allow duplicate questions but cap history at 20 items to prevent UI overflow
+    #  Allows duplicate questions but cap history at 20 items to prevent UI overflow
     st.session_state.history.append(query)
     if len(st.session_state.history) > 20:
         st.session_state.history = st.session_state.history[-20:]
