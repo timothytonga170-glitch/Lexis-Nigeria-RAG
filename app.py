@@ -47,13 +47,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE ENGINE (HYBRID RAG) ---
+#  THE ENGINE (HYBRID RAG) 
 @st.cache_resource
 def setup_engine():
-    # Phase 5: Local Retrieval with Absolute Path Resolution
+    # Local Retrieval with Absolute Path Resolution
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # UPDATED: Point directly to the folder with your 685 semantic chunks
+    #  Point directly to the folder with your 685 semantic chunks
     db_path = os.path.join(current_dir, "constitution_db") 
 
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
@@ -87,13 +87,13 @@ def setup_engine():
 # Initialize the RAG Pipeline
 rag_pipeline = setup_engine()
 
-# --- 3. SESSION STATE ---
+#  SESSION STATE 
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 if "history" not in st.session_state: 
     st.session_state.history = []
 
-# --- 4. SIDEBAR HISTORY ---
+#  SIDEBAR HISTORY 
 with st.sidebar:
     st.markdown("### 🏛 **Legal History**")
     if st.button("🗑 Clear Chat"):
@@ -103,7 +103,7 @@ with st.sidebar:
     for h_query in reversed(st.session_state.history):
         st.caption(f"📜 {h_query[:30]}...")
 
-# --- 5. MAIN CHAT INTERFACE ---
+#  MAIN CHAT INTERFACE 
 st.title("Lexis Nigeria")
 st.caption("Intelligent Constitutional Retrieval Engine • Grounded in the 1999 Constitution")
 
@@ -123,17 +123,17 @@ if query := st.chat_input("Ask about your constitutional rights..."):
     with st.chat_message("user"): 
         st.markdown(query)
 
-    # Generate and display Assistant message
+    # Generates and display Assistant message
     with st.chat_message("assistant"):
         with st.spinner("Searching the Constitution..."):
             response = rag_pipeline.invoke({"input": query})
             ans = response["answer"]
             st.markdown(ans)
             
-            # Display Metadata "Section" citations
+            # Displays Metadata "Section" citations
             with st.expander("🔍 View Verified Legal Context"):
                 for doc in response["context"]:
-                    # Pull the label created in the build script
+                    # Pulls the label created in the build script
                     section_ref = doc.metadata.get("section_ref", "Verified Provision")
                     st.markdown(f"#### 📜 {section_ref}")
                     st.info(f"{doc.page_content[:450]}...")
