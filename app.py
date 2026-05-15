@@ -12,9 +12,8 @@ from langchain_core.prompts import ChatPromptTemplate
 # Setting up the look and feel of the app
 st.set_page_config(page_title="Lexis Nigeria", page_icon="NG", layout="wide")
 
-# Securely loading the API key
+# Securely loading the API key via Streamlit Secrets
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-
 
 st.markdown("""
     <style>
@@ -23,7 +22,7 @@ st.markdown("""
     h1 { color: #ffffff !important; font-weight: 700; }
     .stCaption { color: #94a3b8 !important; }
     
-    /* Force white text for mobile and all chat elements */
+    /* White text for all chat elements */
     [data-testid="stChatMessage"] p, 
     [data-testid="stChatMessage"] li, 
     [data-testid="stChatMessage"] span,
@@ -55,29 +54,30 @@ st.markdown("""
 def setup_engine():
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Pointing directly to the folder where our semantic chunks are stored
         db_path = os.path.join(current_dir, "constitution_db") 
 
-        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        # OPTIMAL: Using 'base' instead of 'small' for better legal terminology capture
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
         
         db = Chroma(persist_directory=db_path, embedding_function=embeddings)
-        retriever = db.as_retriever(search_kwargs={"k": 3})
         
-        # Connecting to Groq for our AI model. It grabs the key from the environment automatically.
+        # OPTIMAL: Increased k to 5 to ensure overlapping provisions (like President vs Governor) are caught
+        retriever = db.as_retriever(search_kwargs={"k": 5})
+        
         llm = ChatGroq(
             temperature=0, 
             model_name="llama-3.1-8b-instant" 
         )
         
-        # Setting strict rules for the AI to make sure it never invents false legal facts
+        # OPTIMAL: Refined System Prompt to prevent hallucination and mix-ups
         system_prompt = (
-            "You are a legal expert on the 1999 Nigerian Constitution. "
-            "Answer the question strictly using the provided context in formal English. "
-            "Only respond in Pidgin or Hausa if the user explicitly asks their question in that specific language. "
-            "Always maintain a professional and authoritative tone. "
-            "If the question cannot be answered from the provided context, say clearly: "
-            "'This matter is not addressed in the constitutional sections I have retrieved. Please consult a qualified legal practitioner.'\n\n"
+            "You are a high-precision legal expert on the 1999 Nigerian Constitution. "
+            "Use the provided context to answer the question. "
+            "STRICT RULES:\n"
+            "1. Answer strictly using the provided context.\n"
+            "2. If the context compares different offices (e.g., President vs Governor), clearly distinguish between them.\n"
+            "3. If the answer is not in the context, say: 'This specific matter is not addressed in the retrieved constitutional sections. Please consult a legal practitioner.'\n"
+            "4. Maintain an authoritative, professional tone.\n\n"
             "Context: {context}"
         )
         
@@ -93,7 +93,7 @@ def setup_engine():
 
 rag_pipeline = setup_engine()
 
-# Keeping track of the chat session
+# Session state management
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 if "history" not in st.session_state: 
@@ -101,16 +101,16 @@ if "history" not in st.session_state:
 
 # Sidebar for the chat history
 with st.sidebar:
-    st.markdown("### 🏛 **Legal History**")
-    if st.button("🗑 Clear Chat"):
+    st.markdown("### 🔍 **Legal History**")
+    if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
         st.session_state.history = [] 
         st.rerun()
     st.divider()
     for h_query in reversed(st.session_state.history):
-        st.caption(f"📜 {h_query[:30]}...")
+        st.caption(f"📌 {h_query[:30]}...")
 
-# The main interface where users type their queries
+# Main interface
 st.title("Lexis Nigeria")
 st.caption("Intelligent Constitutional Retrieval Engine • Grounded in the 1999 Constitution")
 
@@ -119,7 +119,6 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 if query := st.chat_input("Ask about your constitutional rights..."):
-    # Allowing duplicate questions but capping the history at 20 items so the screen does not get crowded
     st.session_state.history.append(query)
     if len(st.session_state.history) > 20:
         st.session_state.history = st.session_state.history[-20:]
@@ -130,28 +129,24 @@ if query := st.chat_input("Ask about your constitutional rights..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Searching the Constitution..."):
-            
-            # Checking if the engine loaded correctly before trying to use it
             if rag_pipeline is None:
-                st.error("The retrieval engine is currently offline. Please check the backend logs.")
+                st.error("The retrieval engine is currently offline.")
             else:
                 try:
                     response = rag_pipeline.invoke({"input": query})
                     ans = response["answer"]
                     st.markdown(ans)
                     
-                    # Displaying the actual law sections to prove the AI is accurate
-                    with st.expander("🔍 View Verified Legal Context"):
+                    with st.expander("📖 View Verified Legal Context"):
                         for doc in response.get("context", []):
                             section_ref = doc.metadata.get("section_ref", "Verified Provision")
                             st.markdown(f"#### 📜 {section_ref}")
-                            st.info(f"{doc.page_content[:450]}...")
+                            st.info(f"{doc.page_content[:600]}...") # Increased character count for better readability
                             st.divider()
             
                     st.session_state.messages.append({"role": "assistant", "content": ans})
                     
                 except Exception as e:
-                    # Catching any errors that happen while Groq is thinking
-                    st.error("There was an issue processing your request with the AI provider. Please try again.")
-                    with st.expander("Show Technical Error Details"):
+                    st.error("Issue processing request with AI provider. Please try again.")
+                    with st.expander("Technical Error Details"):
                         st.write(e)
