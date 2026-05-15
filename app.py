@@ -4,14 +4,12 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq 
 
-
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-#  CONFIG & DARK THEME CSS 
+# Setting up the look and feel of the app
 st.set_page_config(page_title="Lexis Nigeria", page_icon="🇳🇬", layout="wide")
-
 
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
@@ -42,71 +40,74 @@ st.markdown("""
         max-width: 85%; margin-bottom: 25px;
     }
     
-    /* Sidebar & Footer Fixes */
+    /* Sidebar and Footer Fixes */
     section[data-testid="stSidebar"] { background-color: #0f172a; border-right: 1px solid #1e293b; }
     footer {visibility: hidden;}
     .stChatInputContainer { padding-bottom: 20px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE ENGINE (HYBRID RAG) ---
+# The brain of the application
 @st.cache_resource
 def setup_engine():
-    # Phase 5: Local Retrieval with Absolute Path Resolution
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # UPDATED: Point directly to the folder with your 685 semantic chunks
-    db_path = os.path.join(current_dir, "constitution_db") 
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Pointing directly to the folder where our semantic chunks are stored
+        db_path = os.path.join(current_dir, "constitution_db") 
 
-    embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
-    
-    
-    db = Chroma(persist_directory=db_path, embedding_function=embeddings)
-    retriever = db.as_retriever(search_kwargs={"k": 3})
-    
-    # Cloud Generation (Groq LPU) - Pulls key automatically from os.environ
-    llm = ChatGroq(
-        temperature=0, 
-        model_name="llama-3.1-8b-instant" 
-    )
-    
-    #  Enhanced System Prompt for explicit hallucination prevention
-    system_prompt = (
-        "You are a legal expert on the 1999 Nigerian Constitution. "
-        "Answer the question strictly using the provided context in formal English. "
-        "Only respond in Pidgin or Hausa if the user explicitly asks their question in that specific language. "
-        "Always maintain a professional and authoritative tone. "
-        "If the question cannot be answered from the provided context, say clearly: "
-        "'This matter is not addressed in the constitutional sections I have retrieved. Please consult a qualified legal practitioner.'\n\n"
-        "Context: {context}"
-    )
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt), ("human", "{input}"),
-    ])
-    
-    return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        
+        db = Chroma(persist_directory=db_path, embedding_function=embeddings)
+        retriever = db.as_retriever(search_kwargs={"k": 3})
+        
+        # Connecting to Groq for our AI model. It grabs the key from the environment automatically.
+        llm = ChatGroq(
+            temperature=0, 
+            model_name="llama-3.1-8b-instant" 
+        )
+        
+        # Setting strict rules for the AI to make sure it never invents false legal facts
+        system_prompt = (
+            "You are a legal expert on the 1999 Nigerian Constitution. "
+            "Answer the question strictly using the provided context in formal English. "
+            "Only respond in Pidgin or Hausa if the user explicitly asks their question in that specific language. "
+            "Always maintain a professional and authoritative tone. "
+            "If the question cannot be answered from the provided context, say clearly: "
+            "'This matter is not addressed in the constitutional sections I have retrieved. Please consult a qualified legal practitioner.'\n\n"
+            "Context: {context}"
+        )
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt), ("human", "{input}"),
+        ])
+        
+        return create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
+        
+    except Exception as e:
+        st.error(f"Critical System Error: Failed to load the AI Engine. Details: {str(e)}")
+        return None
 
 rag_pipeline = setup_engine()
 
-# --- 3. SESSION STATE ---
+# Keeping track of the chat session
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 if "history" not in st.session_state: 
     st.session_state.history = []
 
-#  SIDEBAR HISTORY 
+# Sidebar for the chat history
 with st.sidebar:
     st.markdown("### 🏛 **Legal History**")
     if st.button("🗑 Clear Chat"):
         st.session_state.messages = []
-        st.session_state.history = [] # Also clear history array
+        st.session_state.history = [] 
         st.rerun()
     st.divider()
     for h_query in reversed(st.session_state.history):
         st.caption(f"📜 {h_query[:30]}...")
 
-# --- 5. MAIN CHAT INTERFACE ---
+# The main interface where users type their queries
 st.title("Lexis Nigeria")
 st.caption("Intelligent Constitutional Retrieval Engine • Grounded in the 1999 Constitution")
 
@@ -115,7 +116,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 if query := st.chat_input("Ask about your constitutional rights..."):
-    #  Allows duplicate questions but cap history at 20 items to prevent UI overflow
+    # Allowing duplicate questions but capping the history at 20 items so the screen does not get crowded
     st.session_state.history.append(query)
     if len(st.session_state.history) > 20:
         st.session_state.history = st.session_state.history[-20:]
@@ -124,20 +125,30 @@ if query := st.chat_input("Ask about your constitutional rights..."):
     with st.chat_message("user"): 
         st.markdown(query)
 
-    # Generate and display Assistant message
     with st.chat_message("assistant"):
         with st.spinner("Searching the Constitution..."):
-            response = rag_pipeline.invoke({"input": query})
-            ans = response["answer"]
-            st.markdown(ans)
             
-            # Display Metadata "Section" citations
-            with st.expander("🔍 View Verified Legal Context"):
-                for doc in response["context"]:
-                    # Pull the label created in the build script
-                    section_ref = doc.metadata.get("section_ref", "Verified Provision")
-                    st.markdown(f"#### 📜 {section_ref}")
-                    st.info(f"{doc.page_content[:450]}...")
-                    st.divider()
-    
-    st.session_state.messages.append({"role": "assistant", "content": ans})
+            # Checking if the engine loaded correctly before trying to use it
+            if rag_pipeline is None:
+                st.error("The retrieval engine is currently offline. Please check the backend logs.")
+            else:
+                try:
+                    response = rag_pipeline.invoke({"input": query})
+                    ans = response["answer"]
+                    st.markdown(ans)
+                    
+                    # Displaying the actual law sections to prove the AI is accurate
+                    with st.expander("🔍 View Verified Legal Context"):
+                        for doc in response.get("context", []):
+                            section_ref = doc.metadata.get("section_ref", "Verified Provision")
+                            st.markdown(f"#### 📜 {section_ref}")
+                            st.info(f"{doc.page_content[:450]}...")
+                            st.divider()
+            
+                    st.session_state.messages.append({"role": "assistant", "content": ans})
+                    
+                except Exception as e:
+                    # Catching any errors that happen while Groq is thinking
+                    st.error("There was an issue processing your request with the AI provider. Please try again.")
+                    with st.expander("Show Technical Error Details"):
+                        st.write(e)

@@ -1,4 +1,0 @@
-question,faithfulness,answer_relevancy,context_precision
-Can the police arrest me without a warrant?,0.8,0.8,1.0
-What are the requirements to be elected as President of Nigeria?,0.8,0.9,1.0
-Is primary education free and compulsory in Nigeria?,0.8,0.8,1.0
