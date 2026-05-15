@@ -3,6 +3,6 @@ langchain-classic
 langchain-community
 langchain-huggingface
 langchain-groq
-chromadb==0.4.24
+chromadb==0.4.15
 sentence-transformers==2.5.1
 protobuf==4.25.3
