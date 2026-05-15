@@ -2,16 +2,19 @@ import streamlit as st
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_groq import ChatGroq 
+from langchain_groq import ChatGroq
 
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# 2026 Updated LangChain Imports
+from langchain_classic.chains import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
 # Setting up the look and feel of the app
-st.set_page_config(page_title="Lexis Nigeria", page_icon="🇳🇬", layout="wide")
+st.set_page_config(page_title="Lexis Nigeria", page_icon="NG", layout="wide")
 
+# Securely loading the API key
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+
 
 st.markdown("""
     <style>
