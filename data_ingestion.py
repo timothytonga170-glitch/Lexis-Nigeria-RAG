@@ -1,6 +1,11 @@
 import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "0"
 import re
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 
 def clean_text(text):
     # Rule 1: Remove vertical sidebar text found in PLAC PDFs
@@ -47,4 +52,30 @@ def run_ingestion(folder_path="data"):
     return all_pages
 
 if __name__ == "__main__":
-    run_ingestion()
+    # Execute Phase 1 & 2
+    documents = run_ingestion()
+    
+    if documents:
+        # Phase 3: Chunking
+        print("Phase 3: Chunking the legal text...")
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        chunks = text_splitter.split_documents(documents)
+        print(f"Created {len(chunks)} semantic chunks.")
+
+        # Phase 4: Building the Vector Database
+        print("Phase 4: Building the Vector Database...")
+        # Using the base model to match the optimal app.py settings
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        
+        # Pointing explicitly to the right path
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(current_dir, "constitution_db")
+        
+        # Creating and saving the database
+        vectorstore = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings,
+            persist_directory=db_path
+        )
+        
+        print("SUCCESS: 'constitution_db' folder has been fully generated!")

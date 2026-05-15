@@ -57,7 +57,7 @@ def setup_engine():
         db_path = os.path.join(current_dir, "constitution_db") 
 
         # OPTIMAL: Using 'base' instead of 'small' for better legal terminology capture
-        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
         
         db = Chroma(persist_directory=db_path, embedding_function=embeddings)
         
